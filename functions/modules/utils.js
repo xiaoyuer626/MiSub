@@ -60,7 +60,9 @@ function isStorageUnavailableError(error) {
     const message = String(error?.message || error || '').toLowerCase();
     return message.includes('kv storage is paused')
         || message.includes('storage is paused')
-        || message.includes('namespace is paused');
+        || message.includes('namespace is paused')
+        || message.includes('kv put() limit exceeded')
+        || message.includes('put() limit exceeded for the day');
 }
 
 async function safeKvGet(kv, key) {
@@ -556,9 +558,6 @@ export function createJsonResponse(data, status = 200, headers = {}) {
         status,
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             ...headers
         }
     });
@@ -611,6 +610,38 @@ export function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+export const JSON_BODY_LIMITS = {
+    auth: 16 * 1024,
+    small: 128 * 1024,
+    normal: 1024 * 1024,
+    large: 5 * 1024 * 1024
+};
+
+export class RequestBodyTooLargeError extends Error {
+    constructor(limitBytes) {
+        super(`Request JSON body too large (max ${limitBytes} bytes)`);
+        this.name = 'RequestBodyTooLargeError';
+        this.status = 413;
+        this.code = 'REQUEST_BODY_TOO_LARGE';
+    }
+}
+
+export async function readJsonWithLimit(request, limitBytes = JSON_BODY_LIMITS.normal) {
+    const contentLength = request?.headers?.get?.('Content-Length') || request?.headers?.get?.('content-length');
+    if (contentLength) {
+        const declaredBytes = Number(contentLength);
+        if (Number.isFinite(declaredBytes) && declaredBytes > limitBytes) {
+            throw new RequestBodyTooLargeError(limitBytes);
+        }
+    }
+
+    const text = await request.text();
+    if (new TextEncoder().encode(text).length > limitBytes) {
+        throw new RequestBodyTooLargeError(limitBytes);
+    }
+    return text ? JSON.parse(text) : {};
 }
 
 /**

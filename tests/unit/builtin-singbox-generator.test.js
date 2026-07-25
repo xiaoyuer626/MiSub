@@ -20,6 +20,22 @@ describe('Built-in Sing-box generator', () => {
         expect(parsed.route.final).toContain('节点选择');
     });
 
+    it('should include a tun inbound for sing-box Android client deployment', () => {
+        const result = generateBuiltinSingboxConfig('trojan://password@1.2.3.4:443#AndroidNode');
+        const parsed = JSON.parse(result);
+
+        expect(parsed.inbounds).toEqual([
+            expect.objectContaining({
+                type: 'tun',
+                tag: 'tun-in',
+                auto_route: true,
+                strict_route: true,
+                stack: 'mixed'
+            })
+        ]);
+        expect(parsed.inbounds[0].address).toEqual(expect.arrayContaining(['172.19.0.1/30']));
+    });
+
     it('should enable TLS for https and socks5-tls', () => {
         const result = generateBuiltinSingboxConfig([
             'https://user:pass@1.2.3.4:443#HttpsNode',
@@ -34,11 +50,16 @@ describe('Built-in Sing-box generator', () => {
         expect(socksNode?.tls?.enabled).toBe(true);
     });
 
-    it('should map trojan websocket transport', () => {
+    it('uses current DNS server objects while preserving Trojan websocket transport', () => {
         const result = generateBuiltinSingboxConfig('trojan://password@1.2.3.4:443?type=ws&path=%2Fws&host=example.com&sni=example.org#TrojanWS');
         const parsed = JSON.parse(result);
         const trojanNode = parsed.outbounds.find(outbound => outbound.tag.endsWith('TrojanWS'));
 
+        expect(parsed.dns.servers).toEqual(expect.arrayContaining([
+            expect.objectContaining({ type: 'udp', server: '223.5.5.5', server_port: 53 }),
+            expect.objectContaining({ type: 'https', server: '1.1.1.1', path: '/dns-query' })
+        ]));
+        expect(parsed.dns.servers.every(server => !Object.hasOwn(server, 'address'))).toBe(true);
         expect(trojanNode?.type).toBe('trojan');
         expect(trojanNode?.tls?.enabled).toBe(true);
         expect(trojanNode?.tls?.server_name).toBe('example.org');
@@ -61,15 +82,30 @@ describe('Built-in Sing-box generator', () => {
         expect(anytlsNode?.tls?.insecure).toBe(true);
     });
 
-    it('should map SS2022 v2ray-plugin websocket without forcing TLS', () => {
+    it('should map SS2022 v2ray-plugin websocket with SIP003 fields instead of an invalid transport', () => {
         const result = generateBuiltinSingboxConfig(SS2022_V2RAY_PLUGIN_NODE);
         const parsed = JSON.parse(result);
         const ssNode = parsed.outbounds.find(outbound => outbound.type === 'shadowsocks');
 
         expect(ssNode?.method).toBe('2022-blake3-aes-256-gcm');
-        expect(ssNode?.transport?.type).toBe('ws');
-        expect(ssNode?.transport?.path).toBe('/?enc=2022-blake3-aes-256-gcm');
-        expect(ssNode?.transport?.headers?.Host).toBe('ss.2227tsj.workers.dev');
+        expect(ssNode?.plugin).toBe('v2ray-plugin');
+        expect(ssNode?.plugin_opts).toBe('mode=websocket;host=ss.2227tsj.workers.dev;path=/?enc=2022-blake3-aes-256-gcm');
+        expect(ssNode?.transport).toBeUndefined();
         expect(ssNode?.tls).toBeUndefined();
+    });
+
+    it('should map TUIC extended parameters documented by sing-box', () => {
+        const result = generateBuiltinSingboxConfig('tuic://uuid-tuic:pass-tuic@tuic.example.com:443?sni=tuic.example.com&congestion_control=bbr&udp_relay_mode=quic&udp_over_stream=1&zero_rtt_handshake=1&heartbeat=10s&allow_insecure=1#TUICNode');
+        const parsed = JSON.parse(result);
+        const tuicNode = parsed.outbounds.find(outbound => outbound.tag.endsWith('TUICNode'));
+
+        expect(tuicNode?.type).toBe('tuic');
+        expect(tuicNode?.congestion_control).toBe('bbr');
+        expect(tuicNode?.udp_relay_mode).toBe('quic');
+        expect(tuicNode?.udp_over_stream).toBe(true);
+        expect(tuicNode?.zero_rtt_handshake).toBe(true);
+        expect(tuicNode?.heartbeat).toBe('10s');
+        expect(tuicNode?.tls?.server_name).toBe('tuic.example.com');
+        expect(tuicNode?.tls?.insecure).toBe(true);
     });
 });

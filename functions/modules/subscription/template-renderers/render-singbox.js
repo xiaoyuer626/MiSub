@@ -43,21 +43,17 @@ function buildOutbound(proxy) {
             method: proxy.cipher || 'aes-128-gcm',
             password: proxy.password || ''
         };
+        // sing-box 的 Shadowsocks 出站使用 SIP003 plugin/plugin_opts；
+        // `transport` 仅属于 V2Ray 传输协议，SFA 会严格拒绝它。
         const plugin = proxy.plugin || '';
         const opts = proxy['plugin-opts'] || proxy.pluginOpts || {};
         if (plugin === 'v2ray-plugin' || opts.mode === 'websocket') {
-            outbound.transport = {
-                type: 'ws',
-                path: opts.path || '/',
-                headers: opts.host ? { Host: opts.host } : {}
-            };
-            if (opts.tls || opts.mode === 'websocket-tls') {
-                outbound.tls = {
-                    enabled: true,
-                    server_name: opts.host || proxy.servername || proxy.sni || server,
-                    insecure: proxy['skip-cert-verify'] === true || proxy.skipCertVerify === true
-                };
-            }
+            outbound.plugin = 'v2ray-plugin';
+            const pluginOptions = ['mode=websocket'];
+            if (opts.host) pluginOptions.push(`host=${opts.host}`);
+            if (opts.path) pluginOptions.push(`path=${opts.path}`);
+            if (opts.tls || opts.mode === 'websocket-tls') pluginOptions.push('tls');
+            outbound.plugin_opts = pluginOptions.join(';');
         }
         return outbound;
     }
@@ -202,8 +198,15 @@ function buildOutbound(proxy) {
             }
         };
         if (proxy.alpn) outbound.tls.alpn = Array.isArray(proxy.alpn) ? proxy.alpn : [proxy.alpn];
-        if (proxy['congestion-control']) outbound.congestion_control = proxy['congestion-control'];
+        const congestionControl = proxy['congestion-control'] || proxy['congestion-controller'] || proxy.congestion;
+        if (congestionControl) outbound.congestion_control = congestionControl;
         if (proxy['udp-relay-mode']) outbound.udp_relay_mode = proxy['udp-relay-mode'];
+        if (proxy['udp-over-stream'] !== undefined) outbound.udp_over_stream = Boolean(proxy['udp-over-stream']);
+        if (proxy['zero-rtt-handshake'] !== undefined || proxy['reduce-rtt'] !== undefined) {
+            outbound.zero_rtt_handshake = Boolean(proxy['zero-rtt-handshake'] ?? proxy['reduce-rtt']);
+        }
+        if (proxy.heartbeat) outbound.heartbeat = String(proxy.heartbeat);
+        if (proxy.network) outbound.network = proxy.network;
         return outbound;
     }
 
@@ -361,8 +364,8 @@ export function renderSingboxFromTemplateModel(model, options = {}) {
         dns: {
             strategy: 'prefer_ipv4',
             servers: [
-                { tag: 'dns-ali', address: '223.5.5.5', detour: 'DIRECT' },
-                { tag: 'dns-google', address: '8.8.8.8', detour: 'DIRECT' }
+                { tag: 'dns-ali', type: 'udp', server: '223.5.5.5', server_port: 53, detour: 'DIRECT' },
+                { tag: 'dns-google', type: 'udp', server: '8.8.8.8', server_port: 53, detour: 'DIRECT' }
             ]
         },
         outbounds: [
