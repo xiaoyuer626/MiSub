@@ -121,22 +121,22 @@ describe('security hardening', () => {
     });
   });
 
-  it('keeps browser login sessions valid for seven days', async () => {
+  it('keeps browser login sessions valid for thirty days', async () => {
     const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
-    const issuedAt = Date.now() - (6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000);
+    const issuedAt = Date.now() - (29 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000);
     const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
     const diagnostic = await getAuthSessionDiagnostic({
       headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${token}` : '' }
     }, env);
 
-    expect(SESSION_DURATION).toBe(7 * 24 * 60 * 60 * 1000);
+    expect(SESSION_DURATION).toBe(30 * 24 * 60 * 60 * 1000);
     expect(diagnostic.isAuthenticated).toBe(true);
     expect(diagnostic.reason).toBe('ok');
   });
 
-  it('marks browser login sessions expired after seven days', async () => {
+  it('marks browser login sessions expired after thirty days', async () => {
     const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
-    const issuedAt = Date.now() - (7 * 24 * 60 * 60 * 1000 + 1000);
+    const issuedAt = Date.now() - (30 * 24 * 60 * 60 * 1000 + 1000);
     const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
     const diagnostic = await getAuthSessionDiagnostic({
       headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${token}` : '' }
