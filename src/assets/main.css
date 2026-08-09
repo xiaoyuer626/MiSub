@@ -83,7 +83,8 @@
   html {
     font-family: var(--font-body);
     font-feature-settings: "cv01", "ss03";
-    scroll-behavior: smooth;
+    /* Keep wheel scrolling proportional to the user's input. */
+    scroll-behavior: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     color-scheme: light;
