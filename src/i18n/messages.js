@@ -70,7 +70,8 @@ export const messages = {
       noToken: '未配置订阅组 Token，无法生成链接',
       linkInvalid: '链接无效，请先完成配置',
       copied: '已复制到剪贴板',
-      copyFailed: '复制失败'
+      copyFailed: '复制失败',
+      clearSearch: '清除搜索'
     },
     profiles: {
       title: '我的订阅组',
@@ -111,7 +112,9 @@ export const messages = {
       advancedTitle: '核心配置与高级设置',
       globalDefault: '默认(全局)',
       optionEnabled: '启用',
-      optionDisabled: '禁用'
+      optionDisabled: '禁用',
+      searchPlaceholder: '搜索我的订阅名称、备注或自定义 ID...',
+      noSearchResults: '没有找到匹配的我的订阅。'
     },
     profileModal: {
       builtinEngine: '内置渲染引擎',
@@ -273,6 +276,8 @@ export const messages = {
       empty: '没有机场订阅',
       emptyDesc: '从单个机场订阅开始；如果手上有多条链接，也可以一次性批量导入。',
       addEmpty: '添加机场订阅',
+      searchPlaceholder: '搜索机场订阅名称、备注或链接...',
+      noSearchResults: '没有找到匹配的机场订阅。',
       expired: '已过期',
       expiresToday: '今天到期',
       expiresInDays: '{count} 天后',
@@ -1263,12 +1268,15 @@ export const messages = {
       noToken: 'No profile token; link unavailable',
       linkInvalid: 'Invalid link; finish setup',
       copied: 'Copied to clipboard',
-      copyFailed: 'Copy failed'
+      copyFailed: 'Copy failed',
+      clearSearch: 'Clear search'
     },
     profiles: {
       title: 'My Subs',
       empty: 'No profiles',
       emptyDesc: 'Create a profile to combine nodes.',
+      searchPlaceholder: 'Search profile name, description, or custom ID...',
+      noSearchResults: 'No matching profiles found.',
       sortingHint: 'Sorting mode active. All profiles shown. Use arrow buttons at bottom-right of cards to reorder, then click "Done".',
       deleteAllConfirmTitle: 'Confirm Clear',
       deleteAllConfirmBody: 'Delete all **profiles**? This cannot be undone.',
@@ -1526,6 +1534,8 @@ export const messages = {
       empty: 'No sources',
       emptyDesc: 'Add one source, or import multiple links.',
       addEmpty: 'Add source',
+      searchPlaceholder: 'Search source name, notes, or URL...',
+      noSearchResults: 'No matching sources found.',
       expired: 'Expired',
       expiresToday: 'Expires today',
       expiresInDays: 'In {count} days',
