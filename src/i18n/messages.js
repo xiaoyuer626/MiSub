@@ -114,6 +114,7 @@ export const messages = {
       optionEnabled: '启用',
       optionDisabled: '禁用',
       searchPlaceholder: '搜索我的订阅名称、备注或自定义 ID...',
+      listSearchPlaceholder: '搜索名称、备注或 ID',
       noSearchResults: '没有找到匹配的我的订阅。'
     },
     profileModal: {
@@ -277,6 +278,7 @@ export const messages = {
       emptyDesc: '从单个机场订阅开始；如果手上有多条链接，也可以一次性批量导入。',
       addEmpty: '添加机场订阅',
       searchPlaceholder: '搜索机场订阅名称、备注或链接...',
+      listSearchPlaceholder: '搜索名称、备注或链接',
       noSearchResults: '没有找到匹配的机场订阅。',
       expired: '已过期',
       expiresToday: '今天到期',
@@ -1276,6 +1278,7 @@ export const messages = {
       empty: 'No profiles',
       emptyDesc: 'Create a profile to combine nodes.',
       searchPlaceholder: 'Search profile name, description, or custom ID...',
+      listSearchPlaceholder: 'Search name, notes, or ID',
       noSearchResults: 'No matching profiles found.',
       sortingHint: 'Sorting mode active. All profiles shown. Use arrow buttons at bottom-right of cards to reorder, then click "Done".',
       deleteAllConfirmTitle: 'Confirm Clear',
@@ -1535,6 +1538,7 @@ export const messages = {
       emptyDesc: 'Add one source, or import multiple links.',
       addEmpty: 'Add source',
       searchPlaceholder: 'Search source name, notes, or URL...',
+      listSearchPlaceholder: 'Search name, notes, or URL',
       noSearchResults: 'No matching sources found.',
       expired: 'Expired',
       expiresToday: 'Expires today',

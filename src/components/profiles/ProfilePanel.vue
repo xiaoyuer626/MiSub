@@ -113,7 +113,7 @@ const handleMoveDown = (profileId) => {
             v-model="searchModel"
             data-testid="profile-search"
             type="search"
-            :placeholder="t('profiles.searchPlaceholder')"
+            :placeholder="t('profiles.listSearchPlaceholder')"
             :aria-label="t('profiles.searchPlaceholder')"
             :disabled="isSorting"
             class="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-20 text-sm text-gray-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-gray-500"
