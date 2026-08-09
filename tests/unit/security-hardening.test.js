@@ -5,8 +5,8 @@ import {
   handleExportDataRequest,
   handlePreviewContentRequest
 } from '../../functions/modules/handlers/debug-handler.js';
-import { handleLogin, createSignedToken, getAuthSessionDiagnostic } from '../../functions/modules/auth-middleware.js';
-import { SESSION_DURATION } from '../../functions/modules/config.js';
+import { handleLogin, createSignedToken, getAuthSessionDiagnostic, renewAuthSession } from '../../functions/modules/auth-middleware.js';
+import { SESSION_DURATION, SESSION_RENEW_THRESHOLD } from '../../functions/modules/config.js';
 import { handleMisubRequest } from '../../functions/modules/subscription/main-handler.js';
 import { logAccessSuccess } from '../../functions/modules/subscription/access-logger.js';
 import { LogService } from '../../functions/services/log-service.js';
@@ -144,6 +144,63 @@ describe('security hardening', () => {
 
     expect(diagnostic.isAuthenticated).toBe(false);
     expect(diagnostic.reason).toBe('expired');
+  });
+
+  it('marks sessions for renewal after seven days without renewing earlier sessions', async () => {
+    const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
+    const recentToken = await createSignedToken(env.COOKIE_SECRET, String(Date.now() - SESSION_RENEW_THRESHOLD + 1000));
+    const matureToken = await createSignedToken(env.COOKIE_SECRET, String(Date.now() - SESSION_RENEW_THRESHOLD - 1000));
+
+    const recent = await getAuthSessionDiagnostic({
+      headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${recentToken}` : '' }
+    }, env);
+    const mature = await getAuthSessionDiagnostic({
+      headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${matureToken}` : '' }
+    }, env);
+
+    expect(recent.shouldRenew).toBe(false);
+    expect(mature.shouldRenew).toBe(true);
+  });
+
+  it('renews mature sessions with a fresh thirty-day cookie', async () => {
+    const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
+    const issuedAt = Date.now() - SESSION_RENEW_THRESHOLD - 1000;
+    const token = await createSignedToken(env.COOKIE_SECRET, String(issuedAt));
+    const request = {
+      url: 'https://example.com/api/data',
+      headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${token}` : '' }
+    };
+    const diagnostic = await getAuthSessionDiagnostic(request, env);
+    expect(diagnostic.isAuthenticated).toBe(true);
+    expect(diagnostic.shouldRenew).toBe(true);
+    const response = await renewAuthSession(request, env, new Response('ok'));
+    const setCookie = response.headers.get('Set-Cookie');
+
+    expect(setCookie).toContain('auth_session=');
+    expect(setCookie).toContain(`Max-Age=${SESSION_DURATION / 1000}`);
+    expect(setCookie).toContain('Secure;');
+
+    const renewedToken = setCookie.split(';')[0].slice('auth_session='.length);
+    const renewedTimestamp = Number(renewedToken.split('.')[0]);
+    expect(renewedTimestamp).toBeGreaterThan(issuedAt);
+  });
+
+  it('does not renew sessions before the threshold or after expiry', async () => {
+    const env = { MISUB_KV: createKv(), COOKIE_SECRET: 'stable-cookie-secret' };
+    const recentToken = await createSignedToken(env.COOKIE_SECRET, String(Date.now() - 1000));
+    const expiredToken = await createSignedToken(env.COOKIE_SECRET, String(Date.now() - SESSION_DURATION - 1000));
+
+    const recentResponse = await renewAuthSession({
+      url: 'http://example.com/api/data',
+      headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${recentToken}` : '' }
+    }, env, new Response('ok'));
+    const expiredResponse = await renewAuthSession({
+      url: 'http://example.com/api/data',
+      headers: { get: name => name.toLowerCase() === 'cookie' ? `auth_session=${expiredToken}` : '' }
+    }, env, new Response('ok'));
+
+    expect(recentResponse.headers.has('Set-Cookie')).toBe(false);
+    expect(expiredResponse.headers.has('Set-Cookie')).toBe(false);
   });
 
   it('does not expose public auth debug endpoints in production', async () => {
