@@ -10,7 +10,8 @@ import {
     createCacheHeaders,
     triggerBackgroundRefresh,
     getCacheConfig,
-    isSuspiciousNodeCountDrop
+    isSuspiciousNodeCountDrop,
+    isLikelyPartialAggregateNodeList
 } from '../../functions/services/node-cache-service.js';
 
 function createStorage(initialData = {}) {
@@ -132,6 +133,21 @@ describe('node-cache-service', () => {
         expect(isSuspiciousNodeCountDrop(156, 80)).toBe(false);
         expect(isSuspiciousNodeCountDrop(9, 1)).toBe(false);
         expect(isSuspiciousNodeCountDrop(0, 1)).toBe(false);
+    });
+
+    it('recognizes the traffic-node plus UUID-node signature of a partial aggregate result', async () => {
+        const partial = [
+            'trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#%E6%B5%81%E9%87%8F%E5%89%A9%E4%BD%99',
+            'vless://11111111-1111-1111-1111-111111111111@example.com:443#11111111-1111-1111-1111-111111111111'
+        ].join('\n') + '\n';
+        const storage = createStorage();
+
+        expect(isLikelyPartialAggregateNodeList(partial)).toBe(true);
+        expect(await setCache(storage, 'cache', partial, ['Airport'])).toBe(false);
+        expect(await getCache(storage, 'cache')).toEqual({ data: null, status: 'miss' });
+        expect(isLikelyPartialAggregateNodeList(
+            'vless://11111111-1111-1111-1111-111111111111@example.com:443#HK\n'
+        )).toBe(false);
     });
 
     it('preserves only requested subscription protective caches when clearing node caches', async () => {

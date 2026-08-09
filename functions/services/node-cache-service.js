@@ -29,6 +29,14 @@ export function isSuspiciousNodeCountDrop(previousCount, nextCount) {
     return next / previous < SHRINK_PROTECTION_MAX_RATIO;
 }
 
+export function isLikelyPartialAggregateNodeList(nodes) {
+    const lines = String(nodes || '').split(/\r?\n+/).map(line => line.trim()).filter(Boolean);
+    if (lines.length < 2 || lines.length > 3) return false;
+    const hasTrafficNode = lines.some(line => /@127\.0\.0\.1(?::443)?(?:[/?#]|$)/i.test(line));
+    const hasUuidNamedNode = lines.some(line => /^(?:vless|vmess|trojan):\/\/.*#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:$|[?&])/i.test(line));
+    return hasTrafficNode && hasUuidNamedNode;
+}
+
 /**
  * 生成缓存键
  * @param {string} type - 缓存类型 ('profile' | 'token')
@@ -98,6 +106,10 @@ export async function getCache(storageAdapter, cacheKey) {
 export async function setCache(storageAdapter, cacheKey, nodes, sources = []) {
     try {
         const nodeCount = nodes.split('\n').filter(line => line.trim()).length;
+        if (isLikelyPartialAggregateNodeList(nodes)) {
+            console.warn(`[Cache] Refusing to cache a likely partial aggregate node list for ${cacheKey}`);
+            return false;
+        }
         const existing = await storageAdapter.get(cacheKey);
         const existingNodeCount = existing?.nodeCount || String(existing?.nodes || '').split('\n').filter(line => line.trim()).length;
         if (nodeCount === 0) {

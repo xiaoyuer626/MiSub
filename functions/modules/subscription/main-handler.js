@@ -4,7 +4,7 @@ import { generateCombinedNodeList } from '../../services/subscription-service.js
 import { sendEnhancedTgNotification, tgEscape } from '../notifications.js';
 import { KV_KEY_SUBS, KV_KEY_PROFILES, KV_KEY_SETTINGS, DEFAULT_SETTINGS as defaultSettings, DEFAULT_SUBCONVERTER_BACKEND } from '../config.js';
 import { createDisguiseResponse } from '../disguise-page.js';
-import { generateCacheKey, setCache, isSuspiciousNodeCountDrop } from '../../services/node-cache-service.js';
+import { generateCacheKey, setCache, isSuspiciousNodeCountDrop, isLikelyPartialAggregateNodeList } from '../../services/node-cache-service.js';
 import { resolveRequestContext } from './request-context.js';
 import { resolveNodeListWithCache } from './cache-manager.js';
 import { ProcessorService } from '../../services/processor-service.js';
@@ -759,8 +759,12 @@ export async function handleMisubRequest(context) {
             const freshNodeCount = freshNodes.split('\n').filter(line => line.trim()).length;
             const existingCache = cacheSaved ? null : await storageAdapter.get(cacheKey);
             const existingNodeCount = existingCache?.nodeCount || String(existingCache?.nodes || '').split('\n').filter(line => line.trim()).length;
-            if (!cacheSaved && isSuspiciousNodeCountDrop(existingNodeCount, freshNodeCount)) {
-                if (existingCache?.nodes && String(existingCache.nodes).trim()) {
+            if (!cacheSaved && (isSuspiciousNodeCountDrop(existingNodeCount, freshNodeCount) || isLikelyPartialAggregateNodeList(freshNodes))) {
+                if (
+                    existingCache?.nodes
+                    && String(existingCache.nodes).trim()
+                    && !isLikelyPartialAggregateNodeList(existingCache.nodes)
+                ) {
                     console.warn('[MiSub Cache] Serving preserved aggregate cache after rejecting a suspicious refresh');
                     return existingCache.nodes;
                 }
@@ -769,13 +773,23 @@ export async function handleMisubRequest(context) {
         return freshNodes;
     };
 
+    const expectedRemoteNodeCount = targetMisubs.reduce((total, sub) => {
+        if (!sub?.enabled || typeof sub?.url !== 'string' || !sub.url.startsWith('http')) return total;
+        const knownCount = Math.max(
+            Number(sub.lastGoodNodeCount) || 0,
+            Number(sub.nodeCount) || 0
+        );
+        return total + (Number.isFinite(knownCount) && knownCount > 0 ? knownCount : 0);
+    }, 0) + targetMisubs.filter(sub => sub?.enabled && typeof sub?.url === 'string' && !sub.url.startsWith('http')).length;
+
     const { combinedNodeList, cacheHeaders } = await resolveNodeListWithCache({
         storageAdapter,
         cacheKey,
         forceRefresh,
         refreshNodes,
         context,
-        targetMisubsCount: targetMisubs.length
+        targetMisubsCount: targetMisubs.length,
+        expectedNodeCount: expectedRemoteNodeCount
     });
 
     console.log(`[MiSub Nodes] Count/Length: ${combinedNodeList ? combinedNodeList.length : 0}`);
