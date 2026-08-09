@@ -104,9 +104,9 @@ function getCurrentRequestUserInfo(context, sub) {
     return sub?.userInfo || null;
 }
 
-function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExpiresAt = '') {
+function mergeSubscriptionUserInfo(context, subscriptions) {
     const strategy = context?.config?.mergeExpireStrategy || 'max';
-    const totalUserInfo = subscriptions.reduce((acc, sub) => {
+    return subscriptions.reduce((acc, sub) => {
         const userInfo = sub?.enabled ? getCurrentRequestUserInfo(context, sub) : null;
         if (!userInfo) return acc;
 
@@ -135,6 +135,10 @@ function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExp
             expire: nextExpire
         };
     }, { upload: 0, download: 0, total: 0, expire: 0 });
+}
+
+function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExpiresAt = '') {
+    const totalUserInfo = mergeSubscriptionUserInfo(context, subscriptions);
 
     const profileExpireTimestamp = profileExpiresAt
         ? Math.floor(new Date(profileExpiresAt).getTime() / 1000)
@@ -165,15 +169,33 @@ function formatProfileExpireTime(expiresAt) {
     });
 }
 
+function formatSubscriptionExpireTime(expireTimestamp) {
+    const timestamp = Number(expireTimestamp);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return '';
+
+    const date = new Date(timestamp * 1000);
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
 function countSubscriptionNodes(nodeList, prependedContent = '') {
     const lines = String(nodeList || '')
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean);
-    const prependedLine = String(prependedContent || '').trim();
+    const prependedLines = String(prependedContent || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
 
-    if (prependedLine && lines[0] === prependedLine) {
-        return Math.max(0, lines.length - 1);
+    if (prependedLines.length > 0 && prependedLines.every((line, index) => lines[index] === line)) {
+        return Math.max(0, lines.length - prependedLines.length);
     }
 
     return lines.length;
@@ -573,19 +595,37 @@ export async function handleMisubRequest(context) {
     if (isProfileExpired) { // Use the flag set earlier
         prependedContentForSubconverter = ''; // Expired node is now in targetMisubs
     } else {
-        // Otherwise, add traffic remaining info if applicable
-        const totalRemainingBytes = targetMisubs.reduce((acc, sub) => {
-            if (sub.enabled && sub.userInfo && sub.userInfo.total > 0) {
-                const used = (sub.userInfo.upload || 0) + (sub.userInfo.download || 0);
-                const remaining = sub.userInfo.total - used;
-                return acc + Math.max(0, remaining);
+        // Otherwise, add traffic and expiration info nodes if enabled.
+        if (config.enableTrafficNode !== false) {
+            const totalUserInfo = mergeSubscriptionUserInfo(context, targetMisubs);
+            const profileExpireTimestamp = currentProfile?.expiresAt
+                ? Math.floor(new Date(currentProfile.expiresAt).getTime() / 1000)
+                : 0;
+            const expireTimestamp = profileExpireTimestamp > 0
+                ? profileExpireTimestamp
+                : totalUserInfo.expire;
+            const virtualNodes = [];
+
+            const totalRemainingBytes = targetMisubs.reduce((acc, sub) => {
+                const userInfo = sub?.enabled ? getCurrentRequestUserInfo(context, sub) : null;
+                if (userInfo && userInfo.total > 0) {
+                    const used = (userInfo.upload || 0) + (userInfo.download || 0);
+                    return acc + Math.max(0, userInfo.total - used);
+                }
+                return acc;
+            }, 0);
+            if (totalRemainingBytes > 0) {
+                const fakeNodeName = `流量剩余 ≫ ${formatBytes(totalRemainingBytes)}`;
+                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
             }
-            return acc;
-        }, 0);
-        if (config.enableTrafficNode !== false && totalRemainingBytes > 0) {
-            const formattedTraffic = formatBytes(totalRemainingBytes);
-            const fakeNodeName = `流量剩余 ≫ ${formattedTraffic}`;
-            prependedContentForSubconverter = `trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`;
+
+            const expireText = formatSubscriptionExpireTime(expireTimestamp);
+            if (expireText) {
+                const fakeNodeName = `到期时间 ≫ ${expireText}`;
+                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000001@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
+            }
+
+            prependedContentForSubconverter = virtualNodes.join('\n');
         }
     }
 
