@@ -297,6 +297,111 @@ describe('handleMisubRequest regression coverage', () => {
         }
     });
 
+    it('uses the subscription group expiration time in the output traffic header', async () => {
+        const subscriptions = [{
+            id: 'sub-a',
+            name: 'Airport A',
+            url: 'https://airport.example/sub',
+            enabled: true,
+            userInfo: null
+        }];
+        const profileExpiresAt = '2030-01-02T03:04:05.000Z';
+        const adapter = createStorageAdapter({
+            settings: {
+                mytoken: 'stable-token',
+                profileToken: 'stable-token',
+                enableFlagEmoji: false,
+                enableTrafficNode: false
+            },
+            subscriptions,
+            profiles: [{
+                id: 'profile-a',
+                name: 'Profile A',
+                enabled: true,
+                expiresAt: profileExpiresAt,
+                subscriptions: ['sub-a'],
+                manualNodes: []
+            }]
+        });
+        createAdapter.mockReturnValue(adapter);
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('trojan://pass@example.com:443#HK', {
+            status: 200,
+            headers: {
+                'subscription-userinfo': 'upload=10; download=20; total=1000; expire=2000'
+            }
+        })));
+
+        const logSpy = silenceExpectedRequestLogs();
+        try {
+            const { handleMisubRequest } = await import('../../functions/modules/subscription/main-handler.js');
+            const response = await handleMisubRequest({
+                request: new Request('https://misub.example/stable-token/profile-a?target=nodes&refresh=1', {
+                    headers: { 'User-Agent': 'ClashMeta' }
+                }),
+                env: {},
+                waitUntil: vi.fn()
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('Subscription-Userinfo'))
+                .toBe(`upload=10; download=20; total=1000; expire=${Math.floor(new Date(profileExpiresAt).getTime() / 1000)}`);
+        } finally {
+            logSpy.mockRestore();
+        }
+    });
+
+    it('falls back to the merged subscription expiration when the group expiration is not set', async () => {
+        const subscriptions = [{
+            id: 'sub-a',
+            name: 'Airport A',
+            url: 'https://airport.example/sub',
+            enabled: true,
+            userInfo: null
+        }];
+        const adapter = createStorageAdapter({
+            settings: {
+                mytoken: 'stable-token',
+                profileToken: 'stable-token',
+                enableFlagEmoji: false,
+                enableTrafficNode: false
+            },
+            subscriptions,
+            profiles: [{
+                id: 'profile-a',
+                name: 'Profile A',
+                enabled: true,
+                expiresAt: '',
+                subscriptions: ['sub-a'],
+                manualNodes: []
+            }]
+        });
+        createAdapter.mockReturnValue(adapter);
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('trojan://pass@example.com:443#HK', {
+            status: 200,
+            headers: {
+                'subscription-userinfo': 'upload=10; download=20; total=1000; expire=2000'
+            }
+        })));
+
+        const logSpy = silenceExpectedRequestLogs();
+        try {
+            const { handleMisubRequest } = await import('../../functions/modules/subscription/main-handler.js');
+            const response = await handleMisubRequest({
+                request: new Request('https://misub.example/stable-token/profile-a?target=nodes&refresh=1', {
+                    headers: { 'User-Agent': 'ClashMeta' }
+                }),
+                env: {},
+                waitUntil: vi.fn()
+            });
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('Subscription-Userinfo'))
+                .toBe('upload=10; download=20; total=1000; expire=2000');
+        } finally {
+            logSpy.mockRestore();
+        }
+    });
+
     it('does not return stale traffic header when current external pull has zero nodes with protective cache disabled', async () => {
         const subscriptions = [{
             id: 'sub-a',

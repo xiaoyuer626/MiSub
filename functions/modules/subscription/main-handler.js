@@ -104,7 +104,7 @@ function getCurrentRequestUserInfo(context, sub) {
     return sub?.userInfo || null;
 }
 
-function buildUserInfoHeaderFromSubscriptions(context, subscriptions) {
+function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExpiresAt = '') {
     const strategy = context?.config?.mergeExpireStrategy || 'max';
     const totalUserInfo = subscriptions.reduce((acc, sub) => {
         const userInfo = sub?.enabled ? getCurrentRequestUserInfo(context, sub) : null;
@@ -136,11 +136,16 @@ function buildUserInfoHeaderFromSubscriptions(context, subscriptions) {
         };
     }, { upload: 0, download: 0, total: 0, expire: 0 });
 
+    const profileExpireTimestamp = profileExpiresAt
+        ? Math.floor(new Date(profileExpiresAt).getTime() / 1000)
+        : 0;
     const safeUserInfo = {
         upload: isFinite(totalUserInfo.upload) ? totalUserInfo.upload : 0,
         download: isFinite(totalUserInfo.download) ? totalUserInfo.download : 0,
         total: isFinite(totalUserInfo.total) ? totalUserInfo.total : 0,
-        expire: isFinite(totalUserInfo.expire) ? totalUserInfo.expire : 0
+        expire: profileExpireTimestamp > 0
+            ? profileExpireTimestamp
+            : (isFinite(totalUserInfo.expire) ? totalUserInfo.expire : 0)
     };
 
     return safeUserInfo.total > 0
@@ -784,7 +789,7 @@ export async function handleMisubRequest(context) {
     // 1. If 'nodes' format requested, return plain text nodes (DataSource for external converters)
     if (targetFormat === 'nodes') {
         const contentToReturn = isProfileExpired ? (DEFAULT_EXPIRED_NODE + '\n') : combinedNodeList;
-        const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs);
+        const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs, currentProfile?.expiresAt);
         const nodeHeaders = {
             "Content-Type": "text/plain; charset=utf-8",
             'Cache-Control': 'no-store, no-cache',
@@ -805,7 +810,7 @@ export async function handleMisubRequest(context) {
     if (isExternalMode && targetFormat !== 'base64') {
         if (shouldRenderClashYamlProfileTemplateLocally({ isExternalMode, targetFormat, templateSource })) {
             try {
-                const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs);
+                const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs, currentProfile?.expiresAt);
                 const builtinOptions = {
                     ...resolveBuiltinRequestOptions({ searchParams: url.searchParams, userAgent: userAgentHeader }),
                     fileName: subName,
@@ -971,7 +976,7 @@ export async function handleMisubRequest(context) {
 
     if (shouldUseBuiltin) {
         try {
-            const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs);
+            const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs, currentProfile?.expiresAt);
 
             let { content: finalContent, contentType, headers: resultHeaders } = await ProcessorService.renderOutput({
                 targetFormat,
@@ -1053,7 +1058,7 @@ export async function handleMisubRequest(context) {
     }
 
     const base64Headers = { "Content-Type": "text/plain; charset=utf-8", 'Cache-Control': 'no-store, no-cache' };
-    const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs);
+    const userInfoHeader = buildUserInfoHeaderFromSubscriptions(context, targetMisubs, currentProfile?.expiresAt);
     if (userInfoHeader) {
         base64Headers['Subscription-Userinfo'] = userInfoHeader;
         base64Headers['Profile-Update-Interval'] = String(config.UpdateInterval || 24);
