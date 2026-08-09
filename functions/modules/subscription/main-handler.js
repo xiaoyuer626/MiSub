@@ -160,6 +160,20 @@ function formatProfileExpireTime(expiresAt) {
     });
 }
 
+function countSubscriptionNodes(nodeList, prependedContent = '') {
+    const lines = String(nodeList || '')
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+    const prependedLine = String(prependedContent || '').trim();
+
+    if (prependedLine && lines[0] === prependedLine) {
+        return Math.max(0, lines.length - 1);
+    }
+
+    return lines.length;
+}
+
 export function resolveTemplateUrl(mode, value, fallbackUrl = '') {
     const normalizedMode = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
     const normalizedValue = typeof value === 'string' ? value.trim() : '';
@@ -762,7 +776,9 @@ export async function handleMisubRequest(context) {
     console.log(`[MiSub Nodes] Count/Length: ${combinedNodeList ? combinedNodeList.length : 0}`);
 
     const domain = url.hostname;
-    const profileExpireText = `<b>订阅组到期:</b> <code>${tgEscape(formatProfileExpireTime(currentProfile?.expiresAt))}</code>`;
+    const profileExpireText = `<b>到期时间:</b> <code>${tgEscape(formatProfileExpireTime(currentProfile?.expiresAt))}</code>`;
+    const nodeCount = isProfileExpired ? 0 : countSubscriptionNodes(combinedNodeList, prependedContentForSubconverter);
+    const nodeCountText = `<b>节点数:</b> <code>${nodeCount}</code>`;
 
     // [Support] External Subconverter Logic
     // 1. If 'nodes' format requested, return plain text nodes (DataSource for external converters)
@@ -858,7 +874,7 @@ export async function handleMisubRequest(context) {
                     config,
                     '🛰️ <b>订阅被访问</b> (第三方转换)',
                     clientIp,
-                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
+                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}\n${nodeCountText}`
                 )
             );
         }
@@ -899,7 +915,7 @@ export async function handleMisubRequest(context) {
                     config,
                     '🛰️ <b>订阅被访问</b>',
                     clientIp,
-                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
+                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}\n${nodeCountText}`
                 )
             );
 
@@ -1010,7 +1026,7 @@ export async function handleMisubRequest(context) {
                         config,
                         '🛰️ <b>订阅被访问</b> (内置转换)',
                         clientIp,
-                        `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
+                        `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}\n${nodeCountText}`
                     )
                 );
 
