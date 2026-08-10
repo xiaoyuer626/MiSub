@@ -269,13 +269,31 @@ function buildGroupLine(group) {
     return `${group.name} = select, ${members}`;
 }
 
+// function buildRuleLine(rule) {
+//     const type = String(rule.type || '').toUpperCase();
+//     if (!type) return null;
+//     if (type === 'RULE-SET') return `RULE-SET,${rule.value},${rule.policy}`;
+//     if (type === 'MATCH' || type === 'FINAL') return `FINAL,${rule.policy}`;
+//     if (type === 'GEOIP') return `GEOIP,${rule.value || 'CN'},${rule.policy}`;
+//     return `${type},${rule.value},${rule.policy}`;
+// }
 function buildRuleLine(rule) {
     const type = String(rule.type || '').toUpperCase();
-    if (!type) return null;
-    if (type === 'RULE-SET') return `RULE-SET,${rule.value},${rule.policy}`;
-    if (type === 'MATCH' || type === 'FINAL') return `FINAL,${rule.policy}`;
-    if (type === 'GEOIP') return `GEOIP,${rule.value || 'CN'},${rule.policy}`;
+    if (!type || type === 'RULE-SET') return null;
+    if (type === 'MATCH' || type === 'FINAL') {
+        return `FINAL,${rule.policy}`;
+    }
+    if (type === 'GEOIP') {
+        return `GEOIP,${rule.value || 'CN'},${rule.policy}`;
+    }
     return `${type},${rule.value},${rule.policy}`;
+}
+
+function buildRemoteRuleLine(rule) {
+    const type = String(rule.type || '').toUpperCase();
+    if (type !== 'RULE-SET') return null;
+    if (!rule.value || !rule.policy) return null;
+    return `${rule.value}, policy=${rule.policy}, enabled=true`;
 }
 
 export function renderLoonFromTemplateModel(model, options = {}) {
@@ -288,6 +306,20 @@ export function renderLoonFromTemplateModel(model, options = {}) {
     const proxies = Array.isArray(normalizedModel.proxies) && normalizedModel.proxies.length > 0
         ? normalizedModel.proxies
         : urlsToClashProxies(proxyUrls);
+    const ruleLines = normalizedModel.rules
+        .filter(rule =>
+            String(rule.type || '').toUpperCase() !== 'RULE-SET'
+        )
+        .map(buildRuleLine)
+        .filter(Boolean);
+    
+    const remoteRuleLines = normalizedModel.rules
+        .filter(rule =>
+            rule.source === 'remote' ||
+            String(rule.type || '').toUpperCase() === 'RULE-SET'
+        )
+        .map(buildRemoteRuleLine)
+        .filter(Boolean);
 
     return [
         '[General]',
@@ -309,8 +341,12 @@ export function renderLoonFromTemplateModel(model, options = {}) {
             .map(buildGroupLine)
             .filter(Boolean),
         '',
+        '[Rule]',
+        ...ruleLines,
+        '',
         '[Remote Rule]',
-        ...normalizedModel.rules.map(buildRuleLine).filter(Boolean),
+        // ...normalizedModel.rules.map(buildRuleLine).filter(Boolean),
+        ...remoteRuleLines,
         ''
     ].join('\n');
 }
