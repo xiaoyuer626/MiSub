@@ -325,7 +325,7 @@ export function renderLoonFromTemplateModel(model, options = {}) {
         '[General]',
         'ip-mode = ipv4-preferred',
         'dns-server = 223.5.5.5, 119.29.29.29',
-        'doh-server = https://223.5.5.5/resolve,https://sm2.doh.pub/dns-query'
+        'doh-server = https://223.5.5.5/resolve,https://sm2.doh.pub/dns-query',
         'skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local, elpass.app, e.crashlytics.com, captive.apple.com, ::ffff:0:0:0:0/1, ::ffff:128:0:0:0/1, fe80::/10, fc00::/7, ::1/128',
         'bypass-tun = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10',
         'interface-mode = auto',
