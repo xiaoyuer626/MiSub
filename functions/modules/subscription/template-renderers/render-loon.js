@@ -309,7 +309,7 @@ export function renderLoonFromTemplateModel(model, options = {}) {
             .map(buildGroupLine)
             .filter(Boolean),
         '',
-        '[Rule]',
+        '[Remote Rule]',
         ...normalizedModel.rules.map(buildRuleLine).filter(Boolean),
         ''
     ].join('\n');
