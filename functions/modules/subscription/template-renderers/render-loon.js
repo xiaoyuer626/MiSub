@@ -156,7 +156,7 @@ function buildProxyLine(proxy) {
                 : proxy.ipv6;
     
             if (ipv6) {
-                extras.push(`interface-ipv6=${ipv6}`);
+                extras.push(`interface-ipV6=${ipv6}`);
             }
         }
     
