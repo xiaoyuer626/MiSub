@@ -321,16 +321,32 @@ export function renderLoonFromTemplateModel(model, options = {}) {
         .map(buildRemoteRuleLine)
         .filter(Boolean);
 
+[General]
+sni-sniffing = true
+ssid-trigger = "default":rule, "cellular":rule,"Ccccccc":DIRECT
+switch-node-after-failure-times=3
+test-timeout = 2
+wifi-access-http-port = 7222
+wifi-access-socks5-port = 7221
+    
     return [
         '[General]',
-        'ipv6 = false',
-        'dns-server = 223.5.5.5, 114.114.114.114',
-        'skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local',
+        'ip-mode = ipv4-preferred'
+        'dns-server = 223.5.5.5, 119.29.29.29',
+        'doh-server = https://223.5.5.5/resolve,https://sm2.doh.pub/dns-query'
+        'skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local, elpass.app, e.crashlytics.com, captive.apple.com, ::ffff:0:0:0:0/1, ::ffff:128:0:0:0/1, fe80::/10, fc00::/7, ::1/128',
+        'bypass-tun = 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10',
+        'interface-mode = auto',
+        'disable-stun = true',
         'allow-udp-proxy = true',
-        'allow-wifi-access = true',
+        'allow-wifi-access = false',
         'wifi-access-http-port = 7222',
         'wifi-access-socks5-port = 7221',
-        'resource-parser = https://raw.githubusercontent.com/sub-store-org/Sub-Store-Resources/master/scripts/sub-store-parser.js',
+        'resource-parser = https://github.com/sub-store-org/Sub-Store/releases/latest/download/sub-store-parser.loon.min.js',
+        'geoip-url = https://gitlab.com/Masaiki/GeoIP2-CN/-/raw/release/Country.mmdb',
+        'proxy-test-url = http://www.gstatic.com/generate_204',
+        'internet-test-url = http://www.apple.com/library/test/success.html'
+
         '',
         '[Proxy]',
         ...proxies.map(buildProxyLine).filter(Boolean),
