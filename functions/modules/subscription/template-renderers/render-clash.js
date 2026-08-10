@@ -160,21 +160,36 @@ export function renderClashFromTemplateModel(model) {
 
     const config = {
         'mixed-port': 7890,
+        'socks-port': 7891,
         'allow-lan': true,
+        'bind-address': '*',
+        'ipv6': true,
         'mode': 'rule',
         'log-level': 'info',
         'external-controller': ':9090',
         'dns': {
             'enable': true,
+            'prefer-h3': false,
+            'use-hosts': true,
+            'use-system-hosts': true,
+            'respect-rules': true,
             'listen': '0.0.0.0:1053',
-            'default-nameserver': ['223.5.5.5', '1.1.1.1'],
+            'ipv6': true,
+            'default-nameserver': ['223.5.5.5', '119.29.29.29'],
             'enhanced-mode': 'fake-ip',
             'fake-ip-range': '198.18.0.1/16',
-            'fake-ip-filter': ['*.lan', '*.localhost'],
+            'fake-ip-filter': ['*.lan', '*.localhost', '*.edu.cn', 'localhost.ptlogin2.qq.com', 'dns.msftncsi.com', 'www.msftncsi.com', 'www.msftconnecttest.com', 
+                               '+.lan', '+.invalid.*', '+.localhost', +.local.*', '+.time.*', '+.ntp.*', '+.time.edu.cn', '+.ntp.org.cn', '+.pool.ntp.org', '+.qpic.cn'],
             'nameserver': [
                 'https://dns.alidns.com/dns-query',
                 'https://doh.pub/dns-query'
+            ],
+            'fallback': [
+                'https://1.0.0.1/dns-query',
+                'https://8.8.8.8/dns-query',
+                'https://208.67.222.222/dns-query'
             ]
+            
         },
         'proxies': normalizedModel.proxies,
         'proxy-groups': normalizedModel.groups
