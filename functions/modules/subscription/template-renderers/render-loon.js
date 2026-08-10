@@ -120,18 +120,119 @@ function buildProxyLine(proxy) {
         // Loon TUIC 语法: Name = tuic, Server, Port, Password, UUID, key=value, ...
         return `${name} = tuic, ${server}, ${port}, ${proxy.password || ''}, ${proxy.uuid || ''}, ${extras.join(', ')}`;
     }
+    // if (type === 'wireguard') {
+    //     const extras = [proxy['private-key'] || ''];
+    //     if (proxy['public-key']) extras.push(`public-key=${proxy['public-key']}`);
+    //     if (proxy.ip) {
+    //         const ip = Array.isArray(proxy.ip) ? proxy.ip[0] : proxy.ip;
+    //         extras.push(`self-ip=${ip}`);
+    //     }
+    //     if (proxy.reserved) {
+    //         const reserved = Array.isArray(proxy.reserved) ? proxy.reserved.join('/') : proxy.reserved;
+    //         extras.push(`client-id=${reserved}`);
+    //     }
+    //     return `${name} = wireguard, ${server}, ${port}, ${extras.join(', ')}`;
+    // }
     if (type === 'wireguard') {
-        const extras = [proxy['private-key'] || ''];
-        if (proxy['public-key']) extras.push(`public-key=${proxy['public-key']}`);
+        if (!proxy['private-key'] || !proxy['public-key']) {
+            return null;
+        }
+        const extras = [];
+        // IPv4
         if (proxy.ip) {
-            const ip = Array.isArray(proxy.ip) ? proxy.ip[0] : proxy.ip;
-            extras.push(`self-ip=${ip}`);
+            const ipv4 = Array.isArray(proxy.ip)
+                ? proxy.ip.find(ip => !String(ip).includes(':'))
+                : proxy.ip;
+    
+            if (ipv4) {
+                extras.push(`interface-ip=${ipv4}`);
+            }
         }
+    
+        // IPv6
+        if (proxy.ipv6) {
+            const ipv6 = Array.isArray(proxy.ipv6)
+                ? proxy.ipv6.find(Boolean)
+                : proxy.ipv6;
+    
+            if (ipv6) {
+                extras.push(`interface-ipV6=${ipv6}`);
+            }
+        }
+    
+        // Private Key
+        extras.push(`private-key="${proxy['private-key']}"`);
+    
+        // MTU
+        if (proxy.mtu) {
+            extras.push(`mtu=${proxy.mtu}`);
+        }
+    
+        // DNS
+        if (proxy.dns) {
+            const dnsList = Array.isArray(proxy.dns)
+                ? proxy.dns.filter(Boolean)
+                : [proxy.dns];
+    
+            const dns4 = dnsList.find(dns => !String(dns).includes(':'));
+            const dns6 = dnsList.find(dns => String(dns).includes(':'));
+    
+            if (dns4) {
+                extras.push(`dns=${dns4}`);
+            }
+    
+            if (dns6) {
+                extras.push(`dnsV6=${dns6}`);
+            }
+        }
+    
+        // Peer
+        const peer = [];
+    
+        peer.push(`public-key="${proxy['public-key']}"`);
+    
+        if (proxy['preshared-key']) {
+            peer.push(`preshared-key="${proxy['preshared-key']}"`);
+        }
+    
         if (proxy.reserved) {
-            const reserved = Array.isArray(proxy.reserved) ? proxy.reserved.join('/') : proxy.reserved;
-            extras.push(`client-id=${reserved}`);
+            const reserved = Array.isArray(proxy.reserved)
+                ? proxy.reserved
+                : String(proxy.reserved)
+                    .split(/[\/,]/)
+                    .map(v => Number(v.trim()))
+                    .filter(Number.isFinite);
+    
+            if (reserved.length) {
+                peer.push(`reserved=[${reserved.join(',')}]`);
+            }
         }
-        return `${name} = wireguard, ${server}, ${port}, ${extras.join(', ')}`;
+    
+        if (proxy['allowed-ips']) {
+            const allowedIps = Array.isArray(proxy['allowed-ips'])
+                ? proxy['allowed-ips'].join(', ')
+                : proxy['allowed-ips'];
+    
+            peer.push(`allowed-ips="${allowedIps}"`);
+        } else {
+            peer.push(
+                proxy.ipv6
+                    ? 'allowed-ips="0.0.0.0/0, ::/0"'
+                    : 'allowed-ips="0.0.0.0/0"'
+            );
+        }
+    
+        // IPv6 endpoint 加 []
+        const endpointHost =
+            String(server).includes(':') && !String(server).startsWith('[')
+                ? `[${server}]`
+                : server;
+    
+        peer.push(`endpoint=${endpointHost}:${port}`);
+    
+        extras.push(`peers=[{${peer.join(',')}}]`);
+    
+        return `${name} = wireguard,${extras.join(',')}`;
     }
     if (type === 'anytls') {
         const extras = [proxy.password || ''];
