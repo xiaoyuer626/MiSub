@@ -892,7 +892,7 @@ type: 'wireguard',
 server,
 port,
 'private-key': privateKey,
-'remote-dns-resolve': true,
+// 'remote-dns-resolve': true, // clash verge not support this key
 udp: true
 };
 
