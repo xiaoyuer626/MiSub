@@ -321,14 +321,6 @@ export function renderLoonFromTemplateModel(model, options = {}) {
         .map(buildRemoteRuleLine)
         .filter(Boolean);
 
-[General]
-sni-sniffing = true
-ssid-trigger = "default":rule, "cellular":rule,"Ccccccc":DIRECT
-switch-node-after-failure-times=3
-test-timeout = 2
-wifi-access-http-port = 7222
-wifi-access-socks5-port = 7221
-    
     return [
         '[General]',
         'ip-mode = ipv4-preferred'
