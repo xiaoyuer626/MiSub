@@ -157,12 +157,17 @@ function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExp
         : null;
 }
 
-function formatProfileExpireTime(expiresAt) {
-    if (!expiresAt) return '未设置';
+export function formatNotificationExpireTime(profileExpiresAt, mergedExpireTimestamp = 0, now = Date.now()) {
+    let date = profileExpiresAt ? new Date(profileExpiresAt) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+        const timestamp = Number(mergedExpireTimestamp);
+        date = Number.isFinite(timestamp) && timestamp > 0
+            ? new Date(timestamp > 1e12 ? timestamp : timestamp * 1000)
+            : null;
+    }
 
-    const date = new Date(expiresAt);
-    if (Number.isNaN(date.getTime())) return '未提供';
-    if (date.getTime() <= Date.now()) return '已到期';
+    if (!date || Number.isNaN(date.getTime())) return '未设置';
+    if (date.getTime() <= now) return '已到期';
 
     return date.toLocaleString('zh-CN', {
         timeZone: 'Asia/Shanghai',
@@ -836,7 +841,8 @@ export async function handleMisubRequest(context) {
     console.log(`[MiSub Nodes] Count/Length: ${combinedNodeList ? combinedNodeList.length : 0}`);
 
     const domain = url.hostname;
-    const profileExpireText = `<b>到期时间:</b> <code>${tgEscape(formatProfileExpireTime(currentProfile?.expiresAt))}</code>`;
+    const mergedExpireTimestamp = mergeSubscriptionUserInfo(context, targetMisubs).expire;
+    const profileExpireText = `<b>到期时间:</b> <code>${tgEscape(formatNotificationExpireTime(currentProfile?.expiresAt, mergedExpireTimestamp))}</code>`;
     const nodeCount = isProfileExpired ? 0 : countSubscriptionNodes(combinedNodeList, prependedContentForSubconverter);
     const nodeCountText = `<b>节点数:</b> <code>${nodeCount}</code>`;
 
