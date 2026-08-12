@@ -13,6 +13,50 @@ export function tgEscape(text) {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function splitIpCnLocation(value) {
+    return String(value || '').trim().split(/\s+/).filter(Boolean);
+}
+
+function isLikelyCarrier(value) {
+    return /(?:移动|联通|电信|電信|广电|廣電|铁通|鐵通|教育网|教育網|宽带|寬帶|通信|通訊|网络|網絡|中华电信|中華電信|台湾大哥大|台灣大哥大|远传|遠傳|台湾之星|台灣之星|亚太电信|亞太電信)$/i.test(String(value || '').trim());
+}
+
+function parseIpCnHtml(html) {
+    const text = String(html || '');
+    const description = text.match(/<meta\s+name=["']description["']\s+content=["'][^"']*?归属地为[：:]\s*([^，,"'<]+?)(?:，|提供|["'])/i)?.[1]?.trim();
+    const tableLocation = text.match(/所在地理位置[\s\S]*?<td[^>]*>[\s\S]*?<span[^>]*>\s*([^<]+?)\s*<\/span>/i)?.[1]?.trim();
+    const tableParts = splitIpCnLocation(tableLocation);
+    const descriptionParts = splitIpCnLocation(description);
+
+    if (tableParts.length > 0) {
+        const result = {
+            country: tableParts[0],
+            city: tableParts.slice(1).join(' ')
+        };
+        const descriptionStartsWithTable = tableParts.every((part, index) => descriptionParts[index] === part);
+        const extraParts = descriptionStartsWithTable ? descriptionParts.slice(tableParts.length) : [];
+        const carrier = extraParts.at(-1);
+
+        if (isLikelyCarrier(carrier)) {
+            const extraPlaceParts = extraParts.slice(0, -1);
+            result.city = [...tableParts.slice(1), ...extraPlaceParts].join(' ');
+            result.isp = carrier;
+        }
+
+        return result;
+    }
+
+    if (descriptionParts.length === 0) return null;
+    const carrier = descriptionParts.at(-1);
+    const hasCarrier = isLikelyCarrier(carrier);
+    const placeParts = hasCarrier ? descriptionParts.slice(0, -1) : descriptionParts;
+    return {
+        country: placeParts[0],
+        city: placeParts.slice(1).join(' '),
+        isp: hasCarrier ? carrier : undefined
+    };
+}
+
 const IP_GEOLOCATION_PROVIDERS = [
     {
         name: 'ip.cn',
@@ -27,24 +71,7 @@ const IP_GEOLOCATION_PROVIDERS = [
             }
         },
         read: response => response.text(),
-        parse: html => {
-            const description = String(html || '').match(/<meta\s+name=["']description["']\s+content=["'][^"']*?归属地为[：:]\s*([^，,"'<]+?)(?:，|提供|["'])/i)?.[1]?.trim();
-            const tableLocation = String(html || '').match(/所在地理位置[\s\S]*?<td[^>]*>[\s\S]*?<span[^>]*>\s*([^<]+?)\s*<\/span>/i)?.[1]?.trim();
-            const location = description || tableLocation;
-            if (!location) return null;
-
-            const parts = location.split(/\s+/).filter(Boolean);
-            const carrierPattern = /^(?:中国)?(?:移动|联通|电信|广电|铁通|教育网|长城宽带|鹏博士|华数|中華電信|中华电信|台灣大哥大|台湾大哥大|遠傳電信|远传电信|台灣之星|台湾之星|亞太電信|亚太电信)$/i;
-            const lastPart = parts.at(-1) || '';
-            const hasCarrier = carrierPattern.test(lastPart);
-            const placeParts = hasCarrier ? parts.slice(0, -1) : parts;
-
-            return {
-                country: placeParts[0],
-                city: placeParts.slice(1).join(' '),
-                isp: hasCarrier ? lastPart : undefined
-            };
-        }
+        parse: parseIpCnHtml
     },
     {
         name: 'ipwho.is',
