@@ -15,6 +15,38 @@ export function tgEscape(text) {
 
 const IP_GEOLOCATION_PROVIDERS = [
     {
+        name: 'ip.cn',
+        supports: ip => /^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip),
+        buildUrl: ip => `https://ip.cn/ip/${encodeURIComponent(ip)}.html`,
+        requestInit: {
+            redirect: 'manual',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Referer': 'https://ip.cn/'
+            }
+        },
+        read: response => response.text(),
+        parse: html => {
+            const description = String(html || '').match(/<meta\s+name=["']description["']\s+content=["'][^"']*?归属地为[：:]\s*([^，,"'<]+?)(?:，|提供|["'])/i)?.[1]?.trim();
+            const tableLocation = String(html || '').match(/所在地理位置[\s\S]*?<td[^>]*>[\s\S]*?<span[^>]*>\s*([^<]+?)\s*<\/span>/i)?.[1]?.trim();
+            const location = description || tableLocation;
+            if (!location) return null;
+
+            const parts = location.split(/\s+/).filter(Boolean);
+            const carrierPattern = /^(?:中国)?(?:移动|联通|电信|广电|铁通|教育网|长城宽带|鹏博士|华数|中華電信|中华电信|台灣大哥大|台湾大哥大|遠傳電信|远传电信|台灣之星|台湾之星|亞太電信|亚太电信)$/i;
+            const lastPart = parts.at(-1) || '';
+            const hasCarrier = carrierPattern.test(lastPart);
+            const placeParts = hasCarrier ? parts.slice(0, -1) : parts;
+
+            return {
+                country: placeParts[0],
+                city: placeParts.slice(1).join(' '),
+                isp: hasCarrier ? lastPart : undefined
+            };
+        }
+    },
+    {
         name: 'ipwho.is',
         buildUrl: ip => `https://ipwho.is/${encodeURIComponent(ip)}`,
         parse: data => data?.success ? {
@@ -50,21 +82,38 @@ function hasGeolocationValue(info) {
     return info && Object.values(info).some(value => value !== undefined && value !== null && String(value).trim() !== '');
 }
 
+function mergeMissingGeolocationValues(current = {}, incoming = {}) {
+    const merged = { ...current };
+    for (const key of ['country', 'city', 'isp', 'asn']) {
+        if (!merged[key] && incoming?.[key]) merged[key] = incoming[key];
+    }
+    return merged;
+}
+
 async function fetchIpGeolocation(clientIp) {
     if (!clientIp || clientIp === 'N/A' || clientIp === 'Unknown' || !/^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-f:]+$/i.test(clientIp)) return null;
 
+    let result = {};
     for (const provider of IP_GEOLOCATION_PROVIDERS) {
+        if (provider.supports && !provider.supports(clientIp)) continue;
         try {
-            const response = await fetch(provider.buildUrl(clientIp), { cf: { timeout: 3000 } });
+            const response = await fetch(provider.buildUrl(clientIp), {
+                cf: { timeout: 3000 },
+                ...(provider.requestInit || {})
+            });
             if (!response.ok) continue;
-            const info = provider.parse(await response.json());
-            if (hasGeolocationValue(info)) return info;
+            const body = provider.read ? await provider.read(response) : await response.json();
+            const info = provider.parse(body);
+            if (!hasGeolocationValue(info)) continue;
+
+            result = mergeMissingGeolocationValues(result, info);
+            if (result.country && result.city && result.isp && result.asn) return result;
         } catch (error) {
             console.debug(`[NotificationService] ${provider.name} geolocation failed:`, error);
         }
     }
 
-    return null;
+    return hasGeolocationValue(result) ? result : null;
 }
 
 /**
