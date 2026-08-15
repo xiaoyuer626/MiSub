@@ -157,12 +157,17 @@ function buildUserInfoHeaderFromSubscriptions(context, subscriptions, profileExp
         : null;
 }
 
-function formatProfileExpireTime(expiresAt) {
-    if (!expiresAt) return '未设置';
+export function formatNotificationExpireTime(profileExpiresAt, mergedExpireTimestamp = 0, now = Date.now()) {
+    let date = profileExpiresAt ? new Date(profileExpiresAt) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+        const timestamp = Number(mergedExpireTimestamp);
+        date = Number.isFinite(timestamp) && timestamp > 0
+            ? new Date(timestamp > 1e12 ? timestamp : timestamp * 1000)
+            : null;
+    }
 
-    const date = new Date(expiresAt);
-    if (Number.isNaN(date.getTime())) return '未提供';
-    if (date.getTime() <= Date.now()) return '已到期';
+    if (!date || Number.isNaN(date.getTime())) return '未设置';
+    if (date.getTime() <= now) return '已到期';
 
     return date.toLocaleString('zh-CN', {
         timeZone: 'Asia/Shanghai',
@@ -836,7 +841,8 @@ export async function handleMisubRequest(context) {
     console.log(`[MiSub Nodes] Count/Length: ${combinedNodeList ? combinedNodeList.length : 0}`);
 
     const domain = url.hostname;
-    const profileExpireText = `<b>到期时间:</b> <code>${tgEscape(formatProfileExpireTime(currentProfile?.expiresAt))}</code>`;
+    const mergedExpireTimestamp = mergeSubscriptionUserInfo(context, targetMisubs).expire;
+    const profileExpireText = `<b>到期时间:</b> <code>${tgEscape(formatNotificationExpireTime(currentProfile?.expiresAt, mergedExpireTimestamp))}</code>`;
     const nodeCount = isProfileExpired ? 0 : countSubscriptionNodes(combinedNodeList, prependedContentForSubconverter);
     const nodeCountText = `<b>节点数:</b> <code>${nodeCount}</code>`;
 
@@ -934,7 +940,7 @@ export async function handleMisubRequest(context) {
                     config,
                     '🛰️ <b>订阅被访问</b> (第三方转换)',
                     clientIp,
-                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n${profileExpireText}`
+                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
                 )
             );
         }
@@ -975,7 +981,7 @@ export async function handleMisubRequest(context) {
                     config,
                     '🛰️ <b>订阅被访问</b>',
                     clientIp,
-                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n${profileExpireText}`
+                    `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
                 )
             );
 
@@ -1086,7 +1092,7 @@ export async function handleMisubRequest(context) {
                         config,
                         '🛰️ <b>订阅被访问</b> (内置转换)',
                         clientIp,
-                        `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n${profileExpireText}`
+                        `<b>域名:</b> <code>${tgEscape(domain)}</code>\n<b>请求格式:</b> <code>${tgEscape(targetFormat)}</code>\n<b>客户端:</b> <code>${tgEscape(userAgentHeader)}</code>\n${nodeCountText}\n<b>订阅组:</b> <code>${tgEscape(subName)}</code>\n${profileExpireText}`
                     )
                 );
 
