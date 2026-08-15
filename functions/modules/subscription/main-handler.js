@@ -882,7 +882,8 @@ export async function handleMisubRequest(context) {
                     enableTfo: urlTfo === 'true' || urlTfo === '1',
                     ruleLevel,
                     regionOverrides: Array.isArray(config.regionOverrides) ? config.regionOverrides : [],
-                    isMeta: isMetaCore(userAgentHeader, url.searchParams)
+                    isMeta: isMetaCore(userAgentHeader, url.searchParams),
+                    customDnsOverride: config.customDnsOverride || ''
                 };
                 const rendered = await ProcessorService.renderOutput({
                     targetFormat,
@@ -1020,7 +1021,8 @@ export async function handleMisubRequest(context) {
         enableTfo: finalEnableTfo,
         ruleLevel: ruleLevel, // 统一后的规则等级
         regionOverrides: Array.isArray(config.regionOverrides) ? config.regionOverrides : [],
-        isMeta: isMetaCore(userAgentHeader, url.searchParams)
+        isMeta: isMetaCore(userAgentHeader, url.searchParams),
+        customDnsOverride: config.customDnsOverride || ''
     };
 
     const managedConfigUrl = buildManagedConfigUrl(request.url);
