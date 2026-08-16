@@ -3,6 +3,7 @@
  */
 
 import { extractNodeMetadata } from '../modules/utils/metadata-extractor.js';
+import { isLocalProxyEndpoint } from './node-utils.js';
 
 /**
  * 解析 URL 查询参数
@@ -1503,7 +1504,7 @@ export function urlsToClashProxies(urls, options = {}) {
             
             return proxy;
         })
-        .filter(proxy => proxy !== null);
+        .filter(proxy => proxy !== null && !isLocalProxyEndpoint(proxy));
 }
 
 /**

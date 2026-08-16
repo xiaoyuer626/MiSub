@@ -194,7 +194,7 @@ function countSubscriptionNodes(nodeList, prependedContent = '') {
     const lines = String(nodeList || '')
         .split(/\r?\n/)
         .map(line => line.trim())
-        .filter(Boolean);
+        .filter(line => line && !line.startsWith('#'));
     const prependedLines = String(prependedContent || '')
         .split(/\r?\n/)
         .map(line => line.trim())
@@ -493,7 +493,7 @@ export async function handleMisubRequest(context) {
     let subName = config.FileName;
     let isProfileExpired = false; // Moved declaration here
 
-    const DEFAULT_EXPIRED_NODE = `trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent('您的订阅已失效')}`;
+    const DEFAULT_EXPIRED_NODE = '# MiSub: 您的订阅已失效';
 
     let currentProfile = null;
 
@@ -622,13 +622,13 @@ export async function handleMisubRequest(context) {
             }, 0);
             if (totalRemainingBytes > 0) {
                 const fakeNodeName = `流量剩余 ≫ ${formatBytes(totalRemainingBytes)}`;
-                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
+                virtualNodes.push(`# MiSub: ${fakeNodeName}`);
             }
 
             const expireText = formatSubscriptionExpireTime(expireTimestamp);
             if (expireText) {
                 const fakeNodeName = `到期时间 ≫ ${expireText}`;
-                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000001@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
+                virtualNodes.push(`# MiSub: ${fakeNodeName}`);
             }
 
             prependedContentForSubconverter = virtualNodes.join('\n');
