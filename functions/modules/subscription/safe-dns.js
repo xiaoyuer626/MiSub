@@ -76,6 +76,22 @@ function resolverList(value, fallback) {
     return normalized.length > 0 ? normalized : [...fallback];
 }
 
+function plainResolver(value) {
+    const raw = String(value || '').trim();
+    if (!raw || raw === 'system') return '';
+
+    const candidate = DNS_SCHEME_PATTERN.test(raw) ? raw : `udp://${raw}`;
+    try {
+        const parsed = new URL(candidate);
+        const host = parsed.hostname.replace(/^\[|\]$/g, '');
+        if (!DNS_HOST_PATTERN.test(parsed.hostname)) return '';
+        const formattedHost = host.includes(':') ? `[${host}]` : host;
+        return `udp://${formattedHost}:53`;
+    } catch {
+        return '';
+    }
+}
+
 function policyInput(override) {
     return isObject(override.policy) ? { ...override, ...override.policy } : override;
 }
@@ -85,16 +101,21 @@ export function resolveDnsPolicy(raw, options = {}) {
     const input = policyInput(override);
     const mode = normalizeMode(options.mode || input.mode || input['dns-mode']);
 
+    const foreign = resolverList(
+        input.foreign || input.foreignNameservers || input['foreign-nameserver'] || input.nameserver,
+        DEFAULT_DNS_POLICY.foreign
+    );
+    const plainForeign = mode === DNS_MODES.CLEAN
+        ? foreign.map(plainResolver).filter(Boolean)
+        : foreign;
+
     return {
         mode,
         domestic: resolverList(
             input.domestic || input.domesticNameservers || input['domestic-nameserver'] || input['default-nameserver'],
             DEFAULT_DNS_POLICY.domestic
         ),
-        foreign: resolverList(
-            input.foreign || input.foreignNameservers || input['foreign-nameserver'] || input.nameserver,
-            DEFAULT_DNS_POLICY.foreign
-        ),
+        foreign: plainForeign.length > 0 ? plainForeign : [...DEFAULT_DNS_POLICY.foreign],
         polluted: resolverList(
             input.polluted || input.pollutedNameservers || input['polluted-nameserver'] || input.fallback,
             DEFAULT_DNS_POLICY.polluted

@@ -30,6 +30,13 @@ describe('shared split DNS policy', () => {
         expect(singbox.final).toBe('dns-foreign-1');
     });
 
+    it('downgrades encrypted KV foreign resolvers to plain UDP in clean mode', () => {
+        const dns = resolveSafeDnsConfig({ nameserver: ['https://dns.google/dns-query'] });
+
+        expect(dns.nameserver).toEqual([`udp://dns.google:53#${DNS_PROXY_GROUP}`]);
+        expect(dns.fallback).toEqual([]);
+    });
+
     it('rejects unsafe resolver overrides and keeps the safe policy', () => {
         const policy = resolveDnsPolicy({
             mode: 'polluted',
