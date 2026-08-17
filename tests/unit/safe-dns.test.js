@@ -28,6 +28,11 @@ describe('shared split DNS policy', () => {
         expect(dns.nameserver.every(server => server.endsWith(`#${DNS_PROXY_GROUP}`))).toBe(true);
         expect(singbox.servers.some(server => server.type === 'https' && server.detour === DNS_PROXY_GROUP)).toBe(true);
         expect(singbox.final).toBe('dns-foreign-1');
+        expect(singbox.rules[0]).toEqual({
+            rule_set: ['geosite-cn'],
+            action: 'route',
+            server: 'dns-cn-1'
+        });
     });
 
     it('downgrades encrypted KV foreign resolvers to plain UDP in clean mode', () => {

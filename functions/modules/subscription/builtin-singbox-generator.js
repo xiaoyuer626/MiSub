@@ -6,8 +6,8 @@
 import { urlToClashProxy, urlsToClashProxies } from '../../utils/url-to-clash.js';
 import { getUniqueName } from './name-utils.js';
 import { groupNodeLinesByRegion } from './region-groups.js';
-import { POLICY_GROUPS, getBuiltinRules, getRemoteProviderDefinitions, DEFAULT_SELECT_GROUP, DEFAULT_RELAY_GROUP, pruneProxyGroups } from './builtin-rules-provider.js';
-import { buildSingboxDnsConfig, DNS_PROXY_GROUP } from './safe-dns.js';
+import { POLICY_GROUPS, getBuiltinRules, getRemoteProviderDefinitions, getSingboxDnsRuleSet, DEFAULT_SELECT_GROUP, DEFAULT_RELAY_GROUP, pruneProxyGroups } from './builtin-rules-provider.js';
+import { buildSingboxDnsConfig, DNS_PROXY_GROUP, SINGBOX_CN_RULE_SET } from './safe-dns.js';
 
 function cleanControlChars(str) {
     if (typeof str !== 'string') return str;
@@ -334,7 +334,10 @@ export function generateBuiltinSingboxConfig(nodeList, options = {}) {
     
     // 提取远程 Rule Set 定义 (Sing-Box 格式)
     const ruleSetsMap = getRemoteProviderDefinitions('singbox', rawRules);
-    const ruleSets = Object.values(ruleSetsMap);
+    const ruleSets = [
+        getSingboxDnsRuleSet(),
+        ...Object.values(ruleSetsMap).filter(ruleSet => ruleSet.tag !== SINGBOX_CN_RULE_SET)
+    ];
 
     // 转换路由规则：将中间对象映射为 Sing-Box 语法
     const routeRules = [

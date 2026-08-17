@@ -27,6 +27,12 @@ MATCH,节点选择
         expect(parsed.dns.servers).toEqual(expect.arrayContaining([
             expect.objectContaining({ type: 'udp', server: '223.5.5.5', server_port: 53 })
         ]));
+        expect(parsed.dns.rules).toEqual(expect.arrayContaining([
+            expect.objectContaining({ rule_set: ['geosite-cn'], action: 'route', server: 'dns-cn-1' })
+        ]));
+        expect(parsed.route.rule_set).toEqual(expect.arrayContaining([
+            expect.objectContaining({ tag: 'geosite-cn', type: 'remote', format: 'binary' })
+        ]));
         expect(parsed.dns.servers.every(server => !Object.hasOwn(server, 'address'))).toBe(true);
         expect(trojan).toBeDefined();
     });

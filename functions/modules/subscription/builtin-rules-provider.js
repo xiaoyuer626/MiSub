@@ -1,5 +1,5 @@
 import { groupNodeLinesByRegion } from './region-groups.js';
-import { DNS_PROXY_GROUP } from './safe-dns.js';
+import { DNS_PROXY_GROUP, SINGBOX_CN_RULE_SET } from './safe-dns.js';
 
 /**
  * 策略组标准名称常量
@@ -321,6 +321,10 @@ export const REMOTE_SOURCES = {
     'geoip-cn': {
         name: 'China IP (GeoIP)',
         singbox: `${SING_GEOIP_BASE}/geoip-cn.srs`
+    },
+    [SINGBOX_CN_RULE_SET]: {
+        name: 'China Domains (GeoSite)',
+        singbox: `${SING_GEOSITE_BASE}/geosite-cn.srs`
     }
 };
 
@@ -485,4 +489,8 @@ export function getRemoteProviderDefinitions(format, ruleLines) {
     });
 
     return providers;
+}
+
+export function getSingboxDnsRuleSet() {
+    return getRemoteProviderDefinitions('singbox', [{ type: 'rule_set', tag: SINGBOX_CN_RULE_SET }])[SINGBOX_CN_RULE_SET];
 }

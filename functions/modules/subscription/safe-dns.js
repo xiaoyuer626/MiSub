@@ -6,6 +6,7 @@ export const DNS_MODES = Object.freeze({
 });
 
 export const DNS_PROXY_GROUP = '🌐 DNS 出口';
+export const SINGBOX_CN_RULE_SET = 'geosite-cn';
 
 export const DEFAULT_DNS_POLICY = Object.freeze({
     domestic: ['223.5.5.5', '119.29.29.29'],
@@ -242,6 +243,7 @@ export function buildSingboxDnsConfig(raw, options = {}) {
         strategy: 'prefer_ipv4',
         servers: [...domesticServers, ...foreignServers],
         rules: [
+            { rule_set: [SINGBOX_CN_RULE_SET], action: 'route', server: domesticTag },
             { domain_suffix: ['.cn', '.lan', '.local'], action: 'route', server: domesticTag }
         ],
         final: foreignTag

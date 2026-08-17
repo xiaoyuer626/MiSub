@@ -39,6 +39,12 @@ describe('Built-in Sing-box generator', () => {
         expect(parsed.dns.rules).toEqual(expect.arrayContaining([
             expect.objectContaining({ action: 'route', server: 'dns-cn-1' })
         ]));
+        expect(parsed.dns.rules).toEqual(expect.arrayContaining([
+            expect.objectContaining({ rule_set: ['geosite-cn'], action: 'route', server: 'dns-cn-1' })
+        ]));
+        expect(parsed.route.rule_set).toEqual(expect.arrayContaining([
+            expect.objectContaining({ tag: 'geosite-cn', type: 'remote', format: 'binary' })
+        ]));
         expect(parsed.outbounds.find(outbound => outbound.tag === '🌐 DNS 出口')?.outbounds).not.toContain('DIRECT');
     });
 
@@ -82,6 +88,7 @@ describe('Built-in Sing-box generator', () => {
             expect.objectContaining({ type: 'https', server: '8.8.8.8', path: '/dns-query', detour: '🌐 DNS 出口' })
         ]));
         expect(parsed.dns.final).toBe('dns-foreign-1');
+        expect(parsed.dns.rules[0].rule_set).toEqual(['geosite-cn']);
     });
 
     it('should map anytls outbound', () => {

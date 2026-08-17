@@ -1,7 +1,7 @@
 import { urlsToClashProxies } from '../../../utils/url-to-clash.js';
 import { normalizeUnifiedTemplateModel } from '../template-model.js';
-import { buildSingboxDnsConfig, DNS_PROXY_GROUP } from '../safe-dns.js';
-import { pinRemoteRuleUrl } from '../builtin-rules-provider.js';
+import { buildSingboxDnsConfig, DNS_PROXY_GROUP, SINGBOX_CN_RULE_SET } from '../safe-dns.js';
+import { getSingboxDnsRuleSet, pinRemoteRuleUrl } from '../builtin-rules-provider.js';
 
 function sanitizeTag(value) {
     return String(value || '').trim() || 'Untitled';
@@ -360,7 +360,10 @@ export function renderSingboxFromTemplateModel(model, options = {}) {
         : urlsToClashProxies(proxyUrls);
     const proxyOutbounds = proxies.map(buildOutbound).filter(Boolean);
     const groupOutbounds = buildGroupOutbounds(normalizedModel.groups.filter(g => Array.isArray(g.members) && g.members.length > 0));
-    const ruleSetObjects = buildRuleSets(normalizedModel.rules);
+    const ruleSetObjects = [
+        getSingboxDnsRuleSet(),
+        ...buildRuleSets(normalizedModel.rules).filter(ruleSet => ruleSet.tag !== SINGBOX_CN_RULE_SET)
+    ];
     const routeRules = normalizedModel.rules.map(mapRuleToSingbox).filter(Boolean);
     const defaultOutbound = normalizedModel.groups.find(group => group.name !== DNS_PROXY_GROUP)?.name || 'DIRECT';
     const dnsConfig = buildSingboxDnsConfig(normalizedModel.settings?.customDnsOverride, {
