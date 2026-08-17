@@ -410,10 +410,13 @@ export function resolveEffectiveEngine({
 }
 
 export function resolveBuiltinRequestOptions({ searchParams, userAgent = '' } = {}) {
+    const params = searchParams || new URLSearchParams('');
+    const dnsMode = params.get('dns-mode') || params.get('dnsMode') || '';
     return {
         userAgent,
-        searchParams: searchParams || new URLSearchParams(''),
-        hiddifyCompatible: isHiddifyAgent(userAgent)
+        searchParams: params,
+        hiddifyCompatible: isHiddifyAgent(userAgent),
+        dnsMode: dnsMode.toLowerCase() === 'polluted' ? 'polluted' : 'clean'
     };
 }
 
@@ -883,7 +886,8 @@ export async function handleMisubRequest(context) {
                     ruleLevel,
                     regionOverrides: Array.isArray(config.regionOverrides) ? config.regionOverrides : [],
                     isMeta: isMetaCore(userAgentHeader, url.searchParams),
-                    customDnsOverride: config.customDnsOverride || ''
+                    customDnsOverride: config.customDnsOverride || '',
+                    dnsMode: url.searchParams.get('dns-mode') || url.searchParams.get('dnsMode') || config.dnsMode || 'clean'
                 };
                 const rendered = await ProcessorService.renderOutput({
                     targetFormat,
@@ -1022,7 +1026,8 @@ export async function handleMisubRequest(context) {
         ruleLevel: ruleLevel, // 统一后的规则等级
         regionOverrides: Array.isArray(config.regionOverrides) ? config.regionOverrides : [],
         isMeta: isMetaCore(userAgentHeader, url.searchParams),
-        customDnsOverride: config.customDnsOverride || ''
+        customDnsOverride: config.customDnsOverride || '',
+        dnsMode: url.searchParams.get('dns-mode') || url.searchParams.get('dnsMode') || config.dnsMode || 'clean'
     };
 
     const managedConfigUrl = buildManagedConfigUrl(request.url);

@@ -7,7 +7,7 @@
 import { urlsToClashProxies } from '../../utils/url-to-clash.js';
 import { getUniqueName } from './name-utils.js';
 import { isMetaCore } from './user-agent-utils.js';
-import { resolveSafeDnsConfig } from './safe-dns.js';
+import { DNS_PROXY_GROUP, resolveSafeDnsConfig } from './safe-dns.js';
 import {
     POLICY_GROUPS,
     RULE_SETS,
@@ -197,14 +197,19 @@ export function generateBuiltinClashConfig(nodeList, options = {}) {
         }
 
         // 基础配置：安全默认值，不再依赖 KV 覆盖才能避免 DNS 递归。
-        const dnsConfig = resolveSafeDnsConfig(options.customDnsOverride || '');
+        const dnsConfig = resolveSafeDnsConfig(options.customDnsOverride || '', {
+            mode: options.dnsMode,
+            proxyGroup: DNS_PROXY_GROUP
+        });
 
         const config = {
             'mixed-port': 7890,
-            'allow-lan': true,
+            'allow-lan': false,
+            'bind-address': '127.0.0.1',
+            'ipv6': false,
             'mode': 'rule',
             'log-level': 'info',
-            'external-controller': ':9090',
+            'external-controller': '127.0.0.1:9090',
 
             'dns': dnsConfig,
 

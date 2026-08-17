@@ -7,6 +7,7 @@ import { urlToClashProxy, urlsToClashProxies } from '../../utils/url-to-clash.js
 import { getUniqueName } from './name-utils.js';
 import { groupNodeLinesByRegion } from './region-groups.js';
 import { POLICY_GROUPS, getBuiltinRules, getRemoteProviderDefinitions, DEFAULT_SELECT_GROUP, DEFAULT_RELAY_GROUP, pruneProxyGroups } from './builtin-rules-provider.js';
+import { buildSingboxDnsConfig, DNS_PROXY_GROUP } from './safe-dns.js';
 
 function cleanControlChars(str) {
     if (typeof str !== 'string') return str;
@@ -346,16 +347,14 @@ export function generateBuiltinSingboxConfig(nodeList, options = {}) {
         { domain_suffix: ['cn'], outbound: 'DIRECT' }
     ];
 
+    const dnsConfig = buildSingboxDnsConfig(options.customDnsOverride || '', {
+        mode: options.dnsMode,
+        proxyGroup: DNS_PROXY_GROUP
+    });
+
     const config = {
         log: { level: 'info' },
-        dns: {
-            strategy: 'prefer_ipv4',
-            servers: [
-                { tag: 'dns-ali', type: 'udp', server: '223.5.5.5', server_port: 53, detour: 'DIRECT' },
-                { tag: 'dns-google', type: 'udp', server: '8.8.8.8', server_port: 53, detour: DEFAULT_SELECT_GROUP },
-                { tag: 'doh-cloudflare', type: 'https', server: '1.1.1.1', server_port: 443, path: '/dns-query', detour: DEFAULT_SELECT_GROUP }
-            ]
-        },
+        dns: dnsConfig,
         inbounds: [
             {
                 type: 'tun',
@@ -374,6 +373,7 @@ export function generateBuiltinSingboxConfig(nodeList, options = {}) {
         ],
         route: {
             auto_detect_interface: true,
+            default_domain_resolver: dnsConfig.servers[0]?.tag || 'dns-cn-1',
             final: levelKey === 'RELAY' ? DEFAULT_RELAY_GROUP : DEFAULT_SELECT_GROUP,
             rule_set: ruleSets,
             rules: routeRules
