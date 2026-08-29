@@ -519,7 +519,9 @@ export async function handleMisubRequest(context) {
     let subName = config.FileName;
     let isProfileExpired = false; // Moved declaration here
 
-    const DEFAULT_EXPIRED_NODE = '# MiSub: 您的订阅已失效';
+    // Use a valid, non-routable Shadowsocks URL so clients can display the
+    // expiration notice as a node instead of dropping a comment line.
+    const DEFAULT_EXPIRED_NODE = `ss://YWVzLTEyOC1nY206bWlzdWItZXhwaXJlZA==@192.0.2.1:1#${encodeURIComponent('您的订阅已到期')}`;
 
     let currentProfile = null;
 
