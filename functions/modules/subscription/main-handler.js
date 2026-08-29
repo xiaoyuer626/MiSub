@@ -521,7 +521,7 @@ export async function handleMisubRequest(context) {
 
     // Use a valid, non-routable Shadowsocks URL so clients can display the
     // expiration notice as a node instead of dropping a comment line.
-    const DEFAULT_EXPIRED_NODE = `ss://YWVzLTEyOC1nY206bWlzdWItZXhwaXJlZA==@192.0.2.1:1#${encodeURIComponent('您的订阅已到期')}`;
+    const DEFAULT_EXPIRED_NODE = `trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent('您的订阅已到期')}`;
 
     let currentProfile = null;
 
@@ -650,13 +650,13 @@ export async function handleMisubRequest(context) {
             }, 0);
             if (totalRemainingBytes > 0) {
                 const fakeNodeName = `流量剩余 ≫ ${formatBytes(totalRemainingBytes)}`;
-                virtualNodes.push(`# MiSub: ${fakeNodeName}`);
+                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
             }
 
             const expireText = formatSubscriptionExpireTime(expireTimestamp);
             if (expireText) {
                 const fakeNodeName = `到期时间 ≫ ${expireText}`;
-                virtualNodes.push(`# MiSub: ${fakeNodeName}`);
+                virtualNodes.push(`trojan://00000000-0000-0000-0000-000000000000@127.0.0.1:443#${encodeURIComponent(fakeNodeName)}`);
             }
 
             prependedContentForSubconverter = virtualNodes.join('\n');
