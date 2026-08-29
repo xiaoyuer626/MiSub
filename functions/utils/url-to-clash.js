@@ -19,7 +19,7 @@ function isVirtualInfoProxy(proxy) {
         && server === '127.0.0.1'
         && Number(proxy.port) === 443
         && password === VIRTUAL_INFO_NODE_PASSWORD
-        && /(?:流量剩余|到期时间)/.test(name);
+        && /(?:流量剩余|到期时间|您的订阅已到期)/.test(name);
 }
 
 /**
